@@ -3,7 +3,9 @@ using Statistics, Distributions, Random
 
 Random.seed!(1234)
 
-df_transformed = CSV.File("data/transformed_data.csv") |> DataFrame |> dropmissing
+include("src/preproc_api.jl")
+
+df_transformed = @pipe CSV.File("data/transformed_data.csv") |> DataFrame |> prepare_model_df(_, :Italy)
 
 #### OLS model
 
@@ -76,7 +78,7 @@ country_mean_prior_coeffs = Dict(
     "Denmark" => 0.2,    # Denmark
     "Netherlands" => 0.2,    # Netherlands
     # "Lativia" => 0.5,    # Lativia
-    "Greece" => 0.1,    # Greece
+    # "Greece" => 0.1,    # Greece
     # "Ukraine" => 0.2,    # Ukraine
     "Spain" => 0.1,    # Spain
     # "Lithuania" => 0.5,    # Lithuania
@@ -93,9 +95,12 @@ country_mean_prior_coeffs = Dict(
     # "Switzerland" => 0.5,    # Switzerland
     # "Thailand" => 0.2,    # Thailand
 )
+
+cols = filter(c -> c != "Italy", vcat("quality", unique(df_transformed.country)))
+
 const X_mu_prior = [
     country_mean_prior_coeffs[c]
-    for c in vcat("quality", unique(df_transformed.country))
+    for c in cols
 ]
 const X_sigma_prior = 0.2
 
@@ -138,11 +143,11 @@ using LazyArrays
 
     β ~ arraydist(LazyArray(@~ Normal.(X_mu_prior, X_sigma_prior)))
 
-    # for i in missing_lag_idx
-    #     y_lag[i] ~ Normal(default_mus[i], default_sigmas[i])
-    # end
+    for i in eachindex(y_lag)
+        y_lag[i] ~ Normal(default_mus[i], default_sigmas[i])
+    end
 
-    y_lag ~ arraydist(LazyArray(@~ Normal.(default_mus, default_sigmas)))
+    # y_lag ~ arraydist(LazyArray(@~ Normal.(default_mus, default_sigmas)))
 
     μ = α .+ y_lag .* β₁ .+ X * β
     y ~ MvNormal(μ, sqrt(σ²))
@@ -173,13 +178,17 @@ model = mvar_reg1(y, y_lag, X)
 
 alg = NUTS(1000, 0.65)
 prior_chain = sample(model, Prior(), 1000)
-chain = @time sample(model, alg, MCMCThreads(), 300, 8)
+chain = @time sample(model, alg, MCMCThreads(), 1000, 4)
 
-plot(chain, seriestype = :mixeddensity, dpi=300)
-plot(chain, seriestype = (:meanplot, :histogram), colordim = :parameter, dpi=300)
+chain_sub = chain[vcat("α", "β₁", ["β[$idx]" for idx in 1:15])]
+
+plot(chain_sub, seriestype = :mixeddensity, dpi=300)
+plot(chain_sub, seriestype = (:meanplot, :histogram), colordim = :parameter, dpi=300)
+
+summarize(chain)
 
 savefig("data/chains_plots.png")
 
 # using JLD2
 # jldsave("data/sampled_chain.jld2"; chain)
-1+2
+

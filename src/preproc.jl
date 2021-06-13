@@ -1,5 +1,5 @@
 using CSV, DataFrames, Pipe
-using ShiftedArrays, CategoricalArrays
+using ShiftedArrays
 using Statistics, Random
 using Base: parse
 
@@ -25,7 +25,6 @@ belgium_and_luxembourg = @pipe df_world_pop |>
 push!(df_world_pop, belgium_and_luxembourg)
 
 ## Restricting to EU14 + US + Canada
-
 countries_eu14_america = [
     "Belgium and Luxembourg",
     "France",
@@ -48,7 +47,6 @@ countries_eu14_america = [
 filter!(r -> r.country in countries_eu14_america, df)
 
 ## Scaling using The World Bank demographic data
-
 df_pop = DataFrames.stack(df_world_pop, Not(:country), variable_name = :year, value_name = :population)
 transform!(df_pop, :year => (y -> parse.(Int, y)) => :year)
 
@@ -57,7 +55,6 @@ transform!(df, [:country, :year, :cases] => ByRow((c, y, k) -> (k / pop_dict[(c,
 select!(df, Not(:cases))
 
 ## Adding ommited NA's
-
 for c in unique(df.country), q in unique(df.quality), y in unique(df.year)
     if filter(r -> r.country == c && r.quality == q && r.year == y, df) |> nrow == 0
         push!(df, Dict(:country => c, :quality => q, :year => y, :popularity => missing))
@@ -67,18 +64,16 @@ end
 sort!(df, [:country, :quality, :year])
 
 ## Removing country-quality pairs without sufficient amout of non-missing observations
-
 @pipe df |>
     groupby(_, [:country, :quality]) |>
     combine(_, :popularity => (x -> skipmissing(x) |> collect |> length) => :count) |>
     sort(_, :count) |>
     first(_, 20)
 
-filter!(r -> !(r.quality == "Super Premium" && r.country in ["Sweden", "Spain", "Belgium and Luxembourg", "Greece", "Finland"]), df)
-filter!(r -> !(r.quality == "Premium" && r.country == "Greece"), df)
+filter!(r -> r.country != "Greece", df)
+filter!(r -> !(r.quality == "Super Premium" && r.country in ["Sweden", "Spain", "Belgium and Luxembourg", "Finland"]), df)
 
 ## Adding lagged target variable
-
 df_transformed = @pipe df |>
     groupby(_, [:country, :quality]) |>
     transform(_, :popularity => lag => :popularity_lag) |>
@@ -87,16 +82,13 @@ df_transformed = @pipe df |>
 filter!(r -> !ismissing(r.popularity), df_transformed)
 
 ## Choosing reference country to be ommited while creating binaries
-
 @pipe df_transformed |>
     groupby(_, :country) |>
     combine(_, :popularity => mean => :mean) |>
     sort(_, :mean) |>
     first(_, 5)
 
-filter!(r -> r.country != "Italy", df_transformed)
 select!(df_transformed, [:country, :quality, :year, :popularity, :popularity_lag])
 
 ## Saving file
-
 CSV.write("data/transformed_data.csv", df_transformed)
