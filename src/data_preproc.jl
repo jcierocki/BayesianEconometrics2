@@ -160,6 +160,8 @@ filter!(r -> r.country != "Italy", df_transformed)
 #     transform!(df_transformed, :quality => (x -> Float64.(x .== q)) => q)
 # end
 
+CSV.write("data/transformed_data.csv", df_transformed)
+
 using CategoricalArrays
 transform!(df_transformed, :quality => (x -> (categorical(x; levels = ["Standard", "Premium", "Super Premium"]) .|> levelcode) .- 2.0) => :quality)
 
@@ -169,5 +171,3 @@ end
 
 rename!(df_transformed, "popularity" => "y", "popularity_lag" => "y_lag")
 transform!(df_transformed, [:y, :y_lag] .=> (x -> log.(x .+ 1)) .=> [:y, :y_lag])
-
-CSV.write("data/transformed_data.csv", df_transformed)
