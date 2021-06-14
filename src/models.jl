@@ -113,14 +113,6 @@ const lag_sigma_prior = 0.2
 const intercept_mu_prior = 3
 const intercept_sigma_prior = 25
 
-### Param simplification
-
-# const coeff_mu_prior = vcat(intercept_mu_prior, y_lag_mu_prior, binary_mu_prior)
-# const coeff_sigma_prior = vcat(intercept_sigma_prior, y_lag_sigma_prior, fill(binary_sigma_prior, size(X, 2)))
-const missing_lag_idx =  filter(i -> ismissing(y_lag[i]), eachindex(y_lag)) #collect(eachindex(y_lag))[ismissing.(y_lag)]
-# const mus_for_missing_obs = default_mus[is_y_lag_missing]
-# const sigmas_for_missing_obs = default_sigmas[is_y_lag_missing]
-
 size(X, 2)
 length(X_mu_prior)
 
@@ -136,18 +128,14 @@ using LazyArrays
     
     β₁ ~ Normal(lag_mu_prior, lag_sigma_prior)
 
-    # β ~ filldist(Normal(), length(X_mu_prior))
-    # β = (β .* X_sigma_prior) .+ X_mu_prior
-
     # β ~ MvNormal(X_mu_prior, X_sigma_prior)
-
     β ~ arraydist(LazyArray(@~ Normal.(X_mu_prior, X_sigma_prior)))
 
+    # y_lag ~ arraydist(LazyArray(@~ Normal.(default_mus, default_sigmas)))
     for i in eachindex(y_lag)
         y_lag[i] ~ Normal(default_mus[i], default_sigmas[i])
     end
-
-    # y_lag ~ arraydist(LazyArray(@~ Normal.(default_mus, default_sigmas)))
+    
 
     μ = α .+ y_lag .* β₁ .+ X * β
     y ~ MvNormal(μ, sqrt(σ²))
@@ -188,6 +176,4 @@ summarize(chain)
 
 savefig("data/chains_plots.png")
 
-# using JLD2
-# jldsave("data/sampled_chain.jld2"; chain)
 

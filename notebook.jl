@@ -4,6 +4,9 @@
 using Markdown
 using InteractiveUtils
 
+# ╔═╡ 7d2712e5-344a-470b-b8b9-e494d0cb6d6e
+using PlutoUI; PlutoUI.TableOfContents(aside=true, title = "Spis treści")
+
 # ╔═╡ 0635c68d-acea-49fe-bf19-6d2913f7ca59
 begin
 	using CSV, DataFrames, Pipe
@@ -13,8 +16,8 @@ end
 
 # ╔═╡ c0cdb478-c615-49a0-9cb5-e30c2cef1834
 begin
-	using Plots; gr()
-	theme(:default)
+	using StatsPlots; gr()
+	# theme(:default)
 	
 	@pipe df |>
 		groupby(_, :year) |>
@@ -258,13 +261,10 @@ begin
 	alg = NUTS(1000, 0.65)
 end
 
-# ╔═╡ 54e4a046-d4de-42e1-83f5-d27a2ca68f70
-md"""
-Przeprowadzimy najpierw próbkowanie rozkładu _a priori_
-"""
-
 # ╔═╡ 1bb21042-575b-4b6d-bbcd-d93a527a5eda
 begin
+	using MCMCChains
+	
 	model_params = vcat("α", "β₁", ["β[$idx]" for idx in 1:15])
 	
 	prior_chain = sample(model, Prior(), 1000)[model_params]
@@ -272,20 +272,77 @@ begin
 	summarize(prior_chain)
 end
 
+# ╔═╡ 54e4a046-d4de-42e1-83f5-d27a2ca68f70
+md"""
+Przeprowadzimy najpierw próbkowanie rozkładu _a priori_
+"""
+
 # ╔═╡ 6957cdce-c991-465d-9bde-bb865d6808f4
-# plot(prior_chain[[:\alpha], seriestype = :histogram, dpi=300)
+plot(prior_chain[["α", "β₁", "β[1]"]], seriestype = :histogram, dpi=300)
+
+# ╔═╡ 88fbdcc7-5757-4673-89d5-f76a9eb1667d
+md"""
+### Ewaluacja modelu _a posteriori_
+Na tym etapie przechodzimy do właściwego modelu bayesowskiego: modelu regresji Normalnego-Gamma z imputacją bayesowską brakujących wartości.
+"""
+
+# ╔═╡ 10ca5260-de06-4836-98cf-c5e78095b0c5
+begin
+	chain = sample(model, alg, MCMCThreads(), 500, 4)[model_params]
+
+	summarize(chain)
+end
+
+# ╔═╡ fc350f0e-019b-446f-98f6-b2e31ed2d884
+md"""
+W oparciu o wartości statystyki `rhat`, która w przypadku każdego ze współczynników modelu znajduje się w okolicach 1-ki, możemy stwierdzić zbieżność próbkowanych łańcuchów. Zweryfikujmy to dodatkowo przy użyciu adekwatnego wykresu, kontrolnie tylko dla parametru ``\beta_1``:
+"""
 
 # ╔═╡ 5db94239-c85d-4f70-9df6-f4e6a2f52392
+plot(chain[["β₁"]], seriestype = :meanplot, dpi = 300)
 
+# ╔═╡ a62f230d-55b7-4928-ae6b-d69e9202e3af
+md"""
+O ustabilizowaniu wartości średniej z łańcucha na zbliżonych poziomach dla wszystkich 4 łańcuchów można już było mówić de facto w okolicach 200 iteracji.
+
+Same wartosći oczekiwane współczynników zmieniły się jedynie nieznacznie w stosunku do modelu nieuwzględniającego informacji z poza próby, co jest dość naturalne z racji na relatywnie dużą liczbę obserwacji w zbiorze uczącym (951).
+
+Zweryfikujmy teraz uzyskane rozkłady:
+"""
 
 # ╔═╡ 63168d61-1e3b-4fd0-95ef-5242ec6016a5
-
+plot(chain, seriestype = :histogram, colordim = :parameter, dpi=300)
 
 # ╔═╡ d5506de4-cc3c-11eb-1c78-b72379ea4d38
+md"""
+Dla wszystkich łańcuchów poza 4-tym uzyskaliśmy bardzo analogiczne rozkłady współczynników _a posteriori_:
+- ``\beta_1`` (opóźniona zmienna objaśniana) - czarny/brązowy histogram po prawej, charakteryzujacy się bardzo małą wariancją;
+- ``\beta_2`` (klasa jakości) - zielony histogram po lewej;
+- ``\beta_3 : \beta_K`` (zmienne binarne określające kraj) - zgrupowanie histogramów w środku wykresu.
+"""
 
+# ╔═╡ 9ed463c5-054b-48d6-8c16-2af595f2c73e
+md"""
+## Użyta platforma sprzętowa
+"""
+
+# ╔═╡ 78058e83-1b5a-4291-8759-177a35f8b9d4
+Text(sprint(versioninfo))
+
+# ╔═╡ 84ce7754-c131-44b6-a88b-996c508d7d5f
+md"""
+## Bibliografia
+
+- Ge, H., Xu, K. & Ghahramani, Z.. (2018). Turing: A Language for Flexible Probabilistic Inference. Proceedings of the Twenty-First International Conference on Artificial Intelligence and Statistics, in Proceedings of Machine Learning Research 84:1682-1690 Available from http://proceedings.mlr.press/v84/ge18b.html .
+
+- Hoffman, M. D., & Gelman, A. (2011, November 18). The No-U-Turn Sampler: Adaptively Setting Path Lengths in Hamiltonian Monte Carlo. arXiv.org. https://arxiv.org/abs/1111.4246.
+
+- 2018/W11: Growth in Irish Whiskey Sales - dataset by makeovermonday. data.world. (2018, March 11). https://data.world/makeovermonday/2018w11-growth-in-irish-whiskey-sales. 
+"""
 
 # ╔═╡ Cell order:
 # ╟─31ade8be-846f-4597-8bac-76156f2b0069
+# ╟─7d2712e5-344a-470b-b8b9-e494d0cb6d6e
 # ╟─28067a58-cdf4-4051-acbe-a55d8fb07197
 # ╟─795dc75f-2ad7-4f26-ba49-a41b77aa5228
 # ╟─0635c68d-acea-49fe-bf19-6d2913f7ca59
@@ -294,19 +351,26 @@ end
 # ╟─584ab811-460d-4a8c-96a4-003cc1415971
 # ╟─03c5e8e8-267f-417b-ae9f-9ea6cd3f1339
 # ╟─ea6add69-0466-4fbc-9d29-d37fe8c2afa1
-# ╠═37a2021a-3992-4f74-8709-048074385a52
+# ╟─37a2021a-3992-4f74-8709-048074385a52
 # ╟─fc82c472-067f-46df-9ca8-ee7cacc77d27
-# ╟─285568be-c244-45d7-bdf1-83c7f93d04a9
+# ╠═285568be-c244-45d7-bdf1-83c7f93d04a9
 # ╟─ac772dc6-1f0f-4c4f-9e08-8174f9fd98a0
 # ╟─d12a260f-e84c-4238-bdfd-559c43efa388
 # ╟─5b26c0a7-abc4-4725-b8aa-1a0a05a2c591
 # ╠═011a89e2-a986-4dc2-bfbe-a4ce43b4f238
 # ╠═1a12c93d-6fcd-47ca-925f-7c975e1d1160
 # ╟─413ee453-6a1f-4f8e-8317-bfb76166c4f2
-# ╟─98e9f972-13bb-4e59-b8e4-520af64f6d1c
+# ╠═98e9f972-13bb-4e59-b8e4-520af64f6d1c
 # ╟─54e4a046-d4de-42e1-83f5-d27a2ca68f70
 # ╠═1bb21042-575b-4b6d-bbcd-d93a527a5eda
-# ╠═6957cdce-c991-465d-9bde-bb865d6808f4
-# ╠═5db94239-c85d-4f70-9df6-f4e6a2f52392
-# ╠═63168d61-1e3b-4fd0-95ef-5242ec6016a5
-# ╠═d5506de4-cc3c-11eb-1c78-b72379ea4d38
+# ╟─6957cdce-c991-465d-9bde-bb865d6808f4
+# ╟─88fbdcc7-5757-4673-89d5-f76a9eb1667d
+# ╠═10ca5260-de06-4836-98cf-c5e78095b0c5
+# ╟─fc350f0e-019b-446f-98f6-b2e31ed2d884
+# ╟─5db94239-c85d-4f70-9df6-f4e6a2f52392
+# ╟─a62f230d-55b7-4928-ae6b-d69e9202e3af
+# ╟─63168d61-1e3b-4fd0-95ef-5242ec6016a5
+# ╟─d5506de4-cc3c-11eb-1c78-b72379ea4d38
+# ╟─9ed463c5-054b-48d6-8c16-2af595f2c73e
+# ╟─78058e83-1b5a-4291-8759-177a35f8b9d4
+# ╟─84ce7754-c131-44b6-a88b-996c508d7d5f
