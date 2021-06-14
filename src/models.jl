@@ -175,7 +175,6 @@ end
 # end
 
 model = mvar_reg1(y, y_lag, X)
-
 alg = NUTS(1000, 0.65)
 prior_chain = sample(model, Prior(), 1000)
 chain = @time sample(model, alg, MCMCThreads(), 1000, 4)

@@ -29,6 +29,9 @@ begin
 		)
 end
 
+# ╔═╡ 011a89e2-a986-4dc2-bfbe-a4ce43b4f238
+using Turing, LazyArrays
+
 # ╔═╡ 37a2021a-3992-4f74-8709-048074385a52
 begin
 	include("src/preproc_api.jl")
@@ -208,14 +211,19 @@ begin
 		for c in cols
 	]
 	const X_sigma_prior = 0.2
-	
-	println("Prior's loaded")
 end
+
+# ╔═╡ 5b26c0a7-abc4-4725-b8aa-1a0a05a2c591
+md"""
+### Implementacja modelu
+
+Opisany wyżej model został zaimplementowany z użyciem pakietu _Turing.jl_, napisanego od zera w Julii subjęzyka probabilistycznego pozwalającego budować modele w tym samym języku co resztę analizy zachowując ponadto wydajność zbliżoną do _Stan_'a oraz liczne analogie w zakresie logicznej struktury kodu. Wśród funkcjonalności tego narzędzia, które zostaną mocniej wykorzystane w niniejszej analizie jest automatyczna detekcja brakujących wartości bez konieczności definiowania dodatkowej flagi i wyrażenia warunkowego jak w _Stan_'ie.
+
+Kod samego modelu prezentuje się następująco:
+"""
 
 # ╔═╡ 1a12c93d-6fcd-47ca-925f-7c975e1d1160
 begin
-	using Turing, LazyArrays
-
 	@model function mvar_reg1(y, y_lag, X)
 		σ² ~ InverseGamma(1, 1)
 
@@ -225,7 +233,7 @@ begin
 		β ~ arraydist(LazyArray(@~ Normal.(X_mu_prior, X_sigma_prior)))
 
 		for i in eachindex(y_lag)
-			y_lag[i] ~ Normal(default_mus[i], default_sigmas[i])
+			y_lag[i] ~ Normal(default_mu[i], default_sigma[i])
 		end
 
 		μ = α .+ y_lag .* β₁ .+ X * β
@@ -233,25 +241,41 @@ begin
 	end
 end
 
-# ╔═╡ 5b26c0a7-abc4-4725-b8aa-1a0a05a2c591
+# ╔═╡ 413ee453-6a1f-4f8e-8317-bfb76166c4f2
 md"""
-### Implmentacja modelu
-
-Opisany wyżej model został zaimplementowany z użyciem pakietu _Turing.jl_, napisanego od zera w Julii subjęzyka probabilistycznego pozwalającego budować modele w tym samym języku co resztę analizy zachowując ponadto wydajność zbliżoną do _Stan_'a oraz liczne analogie w zakresie logicznej struktury kodu. Wśród funkcjonalności tego narzędzia, które zostaną mocniej wykorzystane w niniejszej analizie jest automatyczna detekcja brakujących wartości bez konieczności definiowania dodatkowej flagi i wyrażenia warunkowego jak w _Stan_'ie.
-
-Kod samego prezentuje się następująco:
+Model będziemy próbkować z użyciem _No-U-Turn-Sampler_ (`NUTS()`) z limited kroków optymalizatora ustawionym na 1000 i tolerancją 0.65. Wartość początkową parametrów funkcji wiarygodności pozostawimy niezdefiniowaną co poskutkuje jej dobraniej za pomocą domyślnej procedury heurystycznej.
 """
 
-# ╔═╡ 413ee453-6a1f-4f8e-8317-bfb76166c4f2
-
-
 # ╔═╡ 98e9f972-13bb-4e59-b8e4-520af64f6d1c
-
+begin
+	y = df_model.y
+	y_lag = df_model.y_lag
+	X = @pipe df_model |>
+		select(_, Not([:country, :year, :y, :y_lag])) |>
+		Matrix
+	
+	model = mvar_reg1(y, y_lag, X)
+	alg = NUTS(1000, 0.65)
+end
 
 # ╔═╡ 54e4a046-d4de-42e1-83f5-d27a2ca68f70
-
+md"""
+Przeprowadzimy najpierw próbkowanie rozkładu _a priori_
+"""
 
 # ╔═╡ 1bb21042-575b-4b6d-bbcd-d93a527a5eda
+begin
+	model_params = vcat("α", "β₁", ["β[$idx]" for idx in 1:15])
+	
+	prior_chain = sample(model, Prior(), 1000)[model_params]
+	
+	summarize(prior_chain)
+end
+
+# ╔═╡ 6957cdce-c991-465d-9bde-bb865d6808f4
+# plot(prior_chain[[:\alpha], seriestype = :histogram, dpi=300)
+
+# ╔═╡ 5db94239-c85d-4f70-9df6-f4e6a2f52392
 
 
 # ╔═╡ 63168d61-1e3b-4fd0-95ef-5242ec6016a5
@@ -276,10 +300,13 @@ Kod samego prezentuje się następująco:
 # ╟─ac772dc6-1f0f-4c4f-9e08-8174f9fd98a0
 # ╟─d12a260f-e84c-4238-bdfd-559c43efa388
 # ╟─5b26c0a7-abc4-4725-b8aa-1a0a05a2c591
-# ╟─1a12c93d-6fcd-47ca-925f-7c975e1d1160
-# ╠═413ee453-6a1f-4f8e-8317-bfb76166c4f2
-# ╠═98e9f972-13bb-4e59-b8e4-520af64f6d1c
-# ╠═54e4a046-d4de-42e1-83f5-d27a2ca68f70
+# ╠═011a89e2-a986-4dc2-bfbe-a4ce43b4f238
+# ╠═1a12c93d-6fcd-47ca-925f-7c975e1d1160
+# ╟─413ee453-6a1f-4f8e-8317-bfb76166c4f2
+# ╟─98e9f972-13bb-4e59-b8e4-520af64f6d1c
+# ╟─54e4a046-d4de-42e1-83f5-d27a2ca68f70
 # ╠═1bb21042-575b-4b6d-bbcd-d93a527a5eda
+# ╠═6957cdce-c991-465d-9bde-bb865d6808f4
+# ╠═5db94239-c85d-4f70-9df6-f4e6a2f52392
 # ╠═63168d61-1e3b-4fd0-95ef-5242ec6016a5
 # ╠═d5506de4-cc3c-11eb-1c78-b72379ea4d38
