@@ -1,4 +1,5 @@
 using KernelDensity, Plots; gr()
+import Plots: plot
 	
 struct HDCI{T<:AbstractFloat}
     p::T
