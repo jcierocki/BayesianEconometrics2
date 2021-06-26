@@ -5,11 +5,11 @@ This repo contains project prepared for the Bayesian Econometrics master classes
 This particular analysis focuses on providing an bayesian regression model with specified _a priori_ expecations which explains differences in the irish whiskey sales dynamics across the countries. I used the data provided by the [_Irish Food Board_](https://www.bordbia.ie) in 2018, which consist of sales records from 1995 to 2017 for multiple countries and 3 quality categories. In this particular research I focused on EU14 (before Brexit) countries plus US and Canda.
 
 For pre-rendered static .html reports (in Polish) check:
-- [report_pl.html]("report_pl.html")
-- [report_with_codes_pl.html]("report_with_codes_pl.html")
+- [report_pl.html](report_pl.html)
+- [report_with_codes_pl.html](report_with_codes_pl.html)
 
 For source _Pluto.jl_ notebook check:
-- [notebook.jl]("notebook.jl")
+- [notebook.jl](notebook.jl)
 
 TODO's:
 - english translation of the report,
