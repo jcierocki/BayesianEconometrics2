@@ -16,7 +16,7 @@ end
 
 # ╔═╡ c0cdb478-c615-49a0-9cb5-e30c2cef1834
 begin
-	using StatsPlots; gr()
+	using Plots, StatsPlots; gr()
 	# theme(:default)
 	
 	@pipe df |>
@@ -288,9 +288,18 @@ Na tym etapie przechodzimy do właściwego modelu bayesowskiego: modelu regresji
 
 # ╔═╡ 10ca5260-de06-4836-98cf-c5e78095b0c5
 begin
-	chain = sample(model, alg, MCMCThreads(), 500, 4)[model_params]
+	chain = sample(model, alg, MCMCThreads(), 1000, 4)[model_params]
 
 	summarize(chain)
+end
+
+# ╔═╡ 94b0f520-36c7-429d-821b-028ec3e36d72
+begin
+	include("src/hdci.jl")
+	
+	samples_β₁ = get_params(chain).β₁[chain=1] |> Vector
+	
+	HDCI(samples_β₁, 0.9) |> plot
 end
 
 # ╔═╡ fc350f0e-019b-446f-98f6-b2e31ed2d884
@@ -319,6 +328,16 @@ Dla wszystkich łańcuchów poza 4-tym uzyskaliśmy bardzo analogiczne rozkłady
 - ``\beta_1`` (opóźniona zmienna objaśniana) - czarny/brązowy histogram po prawej, charakteryzujacy się bardzo małą wariancją;
 - ``\beta_2`` (klasa jakości) - zielony histogram po lewej;
 - ``\beta_3 : \beta_K`` (zmienne binarne określające kraj) - zgrupowanie histogramów w środku wykresu.
+"""
+
+# ╔═╡ 0f86c8bd-77e6-4d0c-89ee-aa9501a1e7e3
+md"""
+Prześledźmy jeszcze jak wygląda 90-procentowy przedział ufności HDCI (high-dimensional confidence interval), dla przykładu dla parametru ``\beta_1``:
+"""
+
+# ╔═╡ c3acdc94-ee53-4393-9aa1-1f0b49df6df8
+md"""
+Uzyskaliśmy regularny, względnie symetryczny rozkład.
 """
 
 # ╔═╡ 9ed463c5-054b-48d6-8c16-2af595f2c73e
@@ -371,6 +390,9 @@ md"""
 # ╟─a62f230d-55b7-4928-ae6b-d69e9202e3af
 # ╟─63168d61-1e3b-4fd0-95ef-5242ec6016a5
 # ╟─d5506de4-cc3c-11eb-1c78-b72379ea4d38
+# ╟─0f86c8bd-77e6-4d0c-89ee-aa9501a1e7e3
+# ╟─94b0f520-36c7-429d-821b-028ec3e36d72
+# ╟─c3acdc94-ee53-4393-9aa1-1f0b49df6df8
 # ╟─9ed463c5-054b-48d6-8c16-2af595f2c73e
 # ╟─78058e83-1b5a-4291-8759-177a35f8b9d4
 # ╟─84ce7754-c131-44b6-a88b-996c508d7d5f
